@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TalentID Store</title>
+<style>
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:#0f172a;
+  color:#e5e7eb;
+}
+header{
+  background:linear-gradient(135deg,#2563eb,#06b6d4);
+  padding:24px;
+  text-align:center;
+}
+.container{padding:20px;max-width:900px;margin:auto}
+.card{
+  background:#020617;
+  border-radius:14px;
+  padding:20px;
+  margin-bottom:20px;
+  box-shadow:0 10px 25px rgba(0,0,0,.3)
+}
+h2{color:#38bdf8;margin-top:0}
+label{display:block;margin-top:10px}
+input,select,button{
+  width:100%;
+  padding:10px;
+  margin-top:6px;
+  border-radius:10px;
+  border:none;
+}
+button{
+  background:#22c55e;
+  color:#052e16;
+  font-weight:700;
+  cursor:pointer;
+}
+hr{margin:15px 0;border:1px solid #1f2937}
+.smallBtn{
+  width:auto;
+  padding:4px 8px;
+  margin-left:6px;
+  background:#ef4444;
+  color:white;
+}
+
+/* ADMIN DASHBOARD FLOATING */
+#adminToggle{
+  position:fixed;
+  right:16px;
+  bottom:16px;
+  width:54px;
+  height:54px;
+  border-radius:50%;
+  background:#38bdf8;
+  color:#020617;
+  font-size:24px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:999;
+}
+#adminDashboard{
+  position:fixed;
+  top:0;
+  right:-100%;
+  width:320px;
+  height:100%;
+  background:#020617;
+  padding:16px;
+  transition:.3s;
+  z-index:998;
+  overflow:auto;
+}
+#adminDashboard.active{right:0}
+</style>
+</head>
+<body>
+<header>
+<h1>TalentID Store</h1>
+<p>Diamond FF • TheoTown • ML</p>
+</header>
+<div class="container">
+<!-- FORM PEMBELIAN -->
+<div class="card">
+<h2>📝 Pembelian</h2>
+<p style="font-size:13px;color:#94a3b8">Semua order akan otomatis tersimpan</p>
+<label>Game</label> 
+<select id="game" onchange="updateForm()"></select>
+
+<div id="playerBox"></div>
+<label>Paket Diamond</label> 
+<select id="paket" onchange="updateHarga()"></select>
+
+<label>Metode Pembayaran</label> 
+<select id="payment">
+  <option value="">-- Pilih Metode --</option>
+  <option value="DANA">DANA</option>
+  <option value="OVO">OVO</option>
+  <option value="GoPay">GoPay</option>
+</select>
+<p>Total: <b id="totalHarga">Rp 0</b></p>
+<button onclick="checkout()">Lanjut</button>
+</div>
+</div>
+
+<!-- AUDIO NOTIF ORDER -->
+<audio id="notifSound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3" preload="auto"></audio>
+
+<!-- ADMIN FLOAT BUTTON -->
+<button id="adminToggle" onclick="toggleAdmin()">⚙️</button>
+
+<!-- ADMIN DASHBOARD -->
+<div id="adminDashboard">
+<h2>🔐 Admin Dashboard</h2>
+<input type="password" id="adminPass" placeholder="Password Admin">
+<button onclick="loginAdmin()">Login</button>
+<div id="adminPanel" style="display:none">
+<hr>
+<button onclick="logoutAdmin()" style="background:#ef4444;color:white;margin-bottom:10px;">Logout</button>
+<h3>➕ Tambah Game</h3>
+<input id="newGameKey" placeholder="Kode Game (FF2)">
+<input id="newGameName" placeholder="Nama Game">
+<button onclick="addGame()">Tambah Game</button>
+<hr>
+<h3>💎 Tambah Paket Diamond</h3>
+<select id="adminGame"></select>
+<input id="diamondName" placeholder="Nama Paket">
+<input id="diamondPrice" type="number" placeholder="Harga">
+<button onclick="addDiamond()">Tambah Paket</button>
+<hr>
+<h3>📦 Semua Paket</h3>
+<div id="listPaket"></div>
+<hr>
+<h3>📜 Riwayat Order</h3>
+<div id="orderHistory" style="font-size:14px"></div>
+</div>
+</div>
+
+<script>
+const ADMIN_PASS="admin123";
+const ADMIN_WA="6285185620148"; // nomor WA diperbarui
+let orders = JSON.parse(localStorage.getItem("orders")) || [];
+
+let data = JSON.parse(localStorage.getItem("data")) || {
+FF:{name:"Free Fire",type:"id",paket:[["100 Diamond",15000],["310 Diamond",45000]]},
+TT:{name:"TheoTown",type:"acc",paket:[["100 Diamond",10000],["300 Diamond",28000]]},
+ML:{name:"Mobile Legends",type:"id",paket:[["86 Diamond",20000],["172 Diamond",38000]]}
+};
+
+function toggleAdmin(){
+  adminDashboard.classList.toggle("active");
+}
+
+function save(){localStorage.setItem("data",JSON.stringify(data));render(); renderOrders();}
+
+function render(){
+  game.innerHTML='<option value="">-- Pilih Game --</option>';
+  adminGame.innerHTML="";
+  for(let k in data){
+    game.innerHTML+=`<option value="${k}">${data[k].name}</option>`;
+    adminGame.innerHTML+=`<option value="${k}">${data[k].name}</option>`;
+  }
+  renderList();
+}
+
+function updateForm(){
+  playerBox.innerHTML="";
+  paket.innerHTML='<option value="">-- Pilih Paket --</option>';
+  let g=game.value;
+  if(!g)return;
+
+  if(data[g].type==="acc"){
+    playerBox.innerHTML=`<label>Account</label><input id="account"><label>Password</label><input type="password" id="password">`;
+  }else{
+    playerBox.innerHTML=`<label>ID Player</label><input id="idplayer">`;
+  }
+
+  data[g].paket.forEach(p=>{
+    paket.innerHTML+=`<option value="${p[1]}">${p[0]}</option>`;
+  });
+  updateHarga();
+}
+
+function updateHarga(){
+  totalHarga.innerText="Rp "+Number(paket.value||0).toLocaleString("id-ID");
+}
+
+// NOTIFIKASI WEB PUSH
+function requestNotificationPermission() {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") Notification.requestPermission();
+}
+
+function notifyOrder(order){
+  if(Notification.permission === "granted"){
+    new Notification("Order Baru!", {
+      body: `Game: ${order.game}\nPaket: ${order.paket}\nTotal: ${order.total}`,
+      icon: "https://i.ibb.co/1bXn5Vv/diamond-icon.png"
+    });
+  }
+}
+
+// CHECKOUT
+function checkout(){
+  if(!game.value||!paket.value||!payment.value) return alert("Lengkapi data dulu");
+
+  let info="";
+  if(document.getElementById("idplayer")){
+    if(!idplayer.value) return alert("Isi ID Player");
+    info="ID Player: "+idplayer.value;
+  }else{
+    if(!account.value||!password.value) return alert("Isi Account & Password");
+    info="Account: "+account.value;
+  }
+
+  let msg=`Halo Admin TalentID, saya mau order\n\nGame: ${game.options[game.selectedIndex].text}\n${info}\nPaket: ${paket.options[paket.selectedIndex].text}\nMetode Pembayaran: ${payment.value}\nTotal: ${totalHarga.innerText}`;
+
+  let orderObj = {
+    game: game.options[game.selectedIndex].text,
+    info: info,
+    paket: paket.options[paket.selectedIndex].text,
+    bayar: payment.value,
+    total: totalHarga.innerText,
+    waktu: new Date().toLocaleString("id-ID")
+  };
+
+  orders.push(orderObj);
+  localStorage.setItem("orders",JSON.stringify(orders));
+  renderOrders();
+
+  // 🔔 Notif & suara hanya untuk admin
+  if(adminPanel.style.display === "block"){
+    document.getElementById("notifSound").play();
+    notifyOrder(orderObj);
+  }
+
+  window.open("https://wa.me/"+ADMIN_WA+"?text="+encodeURIComponent(msg),"_blank");
+}
+
+// CEK STATUS LOGIN ADMIN SAAT HALAMAN DIBUKA
+if(localStorage.getItem("adminLogged") === "true"){
+  adminPanel.style.display = "block";
+  requestNotificationPermission();
+}
+
+// LOGIN ADMIN
+function loginAdmin(){
+  if(adminPass.value===ADMIN_PASS){
+    adminPanel.style.display="block";
+    localStorage.setItem("adminLogged","true");
+    requestNotificationPermission();
+  } else alert("Password salah");
+}
+
+// LOGOUT ADMIN
+function logoutAdmin(){
+  adminPanel.style.display="none";
+  localStorage.removeItem("adminLogged");
+}
+
+function addGame(){
+  let k=newGameKey.value.toUpperCase();
+  if(data[k])return alert("Game sudah ada");
+  data[k]={name:newGameName.value,type:"id",paket:[]};
+  save();
+}
+
+function addDiamond(){
+  data[adminGame.value].paket.push([diamondName.value,Number(diamondPrice.value)]);
+  save();
+}
+
+function renderOrders(){
+orderHistory.innerHTML="";
+if(orders.length===0){orderHistory.innerHTML="<i>Belum ada order</i>";return;}
+orders.slice().reverse().forEach(o=>{
+orderHistory.innerHTML+=`<div style="border-bottom:1px solid #1f2937;padding:6px 0">
+<b>${o.game}</b><br>
+${o.info}<br>
+${o.paket}<br>
+${o.bayar} • ${o.total}<br>
+<span style="font-size:12px;color:#94a3b8">${o.waktu}</span>
+</div>`;
+});
+}
+
+function renderList(){
+  listPaket.innerHTML="";
+  for(let g in data){
+    listPaket.innerHTML+=`<b>${data[g].name}</b><br>`;
+    data[g].paket.forEach((p,i)=>{
+      listPaket.innerHTML+=`${p[0]} - Rp ${p[1].toLocaleString("id-ID")} <button class="smallBtn" onclick="del('${g}',${i})">X</button><br>`;
+    });
+  }
+}
+
+function del(g,i){data[g].paket.splice(i,1);save();}
+render();
+</script>
+</body>
+</html>
