@@ -171,13 +171,23 @@ function render(){
 function updateForm(){
   playerBox.innerHTML="";
   paket.innerHTML='<option value="">-- Pilih Paket --</option>';
-  let g=game.value;
-  if(!g)return;
+  let g = game.value;
+  if(!g) return;
 
-  if(data[g].type==="acc"){
-    playerBox.innerHTML=`<label>Account</label><input id="account"><label>Password</label><input type="password" id="password">`;
-  }else{
-    playerBox.innerHTML=`<label>ID Player</label><input id="idplayer">`;
+  if(data[g].type === "acc"){
+    if(g === "TT"){ // khusus TheoTown
+      playerBox.innerHTML = `
+        <label>Username</label><input id="account">
+        <label>Password</label><input type="password" id="password">
+      `;
+    } else {
+      playerBox.innerHTML = `
+        <label>Account</label><input id="account">
+        <label>Password</label><input type="password" id="password">
+      `;
+    }
+  } else {
+    playerBox.innerHTML = `<label>ID Player</label><input id="idplayer">`;
   }
 
   data[g].paket.forEach(p=>{
